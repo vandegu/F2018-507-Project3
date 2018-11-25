@@ -183,6 +183,8 @@ def process_command(command):
                 sql_params['limit'] = 'DESC LIMIT {}'.format(c[1])
             elif c[0] == 'bottom':
                 sql_params['limit'] = 'ASC LIMIT {}'.format(c[1])
+            else:
+                raise SyntaxError()
 
         # Create the SQL statement:
         statement = sql_params['select']+' '+sql_params['where']+' '+sql_params['sortby']+' '+sql_params['limit']
@@ -242,6 +244,8 @@ def process_command(command):
                 sql_params['limit'] = 'DESC LIMIT {}'.format(c[1])
             elif c[0] == 'bottom':
                 sql_params['limit'] = 'ASC LIMIT {}'.format(c[1])
+            else:
+                raise SyntaxError()
 
         # Create the SQL statement:
         statement = sql_params['select']+' '+sql_params['where']+' '+sql_params['sortby']+' '+sql_params['limit']
@@ -283,7 +287,7 @@ def process_command(command):
                 continue # default
             elif c[0] == 'cocoa':
                 sql_params['select'] = '''
-                    SELECT c.EnglishName, c.Region, AVG(b.Rating) FROM Bars AS b
+                    SELECT c.EnglishName, c.Region, AVG(b.CocoaPercent) FROM Bars AS b
                 '''
                 sql_params['sortby'] = "ORDER BY AVG(b.CocoaPercent)"
             elif c[0] == 'bars_sold':
@@ -298,11 +302,13 @@ def process_command(command):
                     JOIN Countries AS c ON b.BroadBeanOriginId=c.Id GROUP BY c.EnglishName
                 '''
             elif c[0] == 'region':
-                sql_params['where'] += ' AND cid.Region=\'{}\''.format(c[1])
+                sql_params['where'] += ' AND c.Region=\'{}\''.format(c[1])
             elif c[0] == 'top':
                 sql_params['limit'] = 'DESC LIMIT {}'.format(c[1])
             elif c[0] == 'bottom':
                 sql_params['limit'] = 'ASC LIMIT {}'.format(c[1])
+            else:
+                raise SyntaxError()
 
         # Create the SQL statement:
         statement = sql_params['select']+' '+sql_params['join']+' '+sql_params['where']+' '+sql_params['sortby']+' '+sql_params['limit']
@@ -362,6 +368,8 @@ def process_command(command):
                 sql_params['limit'] = 'DESC LIMIT {}'.format(c[1])
             elif c[0] == 'bottom':
                 sql_params['limit'] = 'ASC LIMIT {}'.format(c[1])
+            else:
+                raise SyntaxError()
 
         # Create the SQL statement:
         statement = sql_params['select']+' '+sql_params['join']+' '+sql_params['where']+' '+sql_params['sortby']+' '+sql_params['limit']
@@ -379,35 +387,48 @@ def process_command(command):
 
         return out
 
+    else:
+        raise SyntaxError()
 
 
+def load_help_text():
+    with open('help.txt') as f:
+        return f.read()
 
+# Part 3: Implement interactive prompt. We've started for you!
+def interactive_prompt():
+    help_text = load_help_text()
+    response = ''
+    while response != 'exit':
+        response = input('\nEnter a command (or "help" for list of commands, or "exit" to quit): ')
 
+        if response == 'help':
+            print(help_text)
+            continue
 
+        elif response == 'exit':
+            print('bye')
+            continue
 
+        else:
+            pout = ''
+            try:
+                query_results = process_command(response)
+            except:
+                print('Command not recognized: {}'.format(response))
+                continue
+            for rec in query_results:
+                for field in rec:
+                    if type(field) == float:
+                        field = '{0:.2f}'.format(field)
+                    sf = str(field)
+                    if len(sf) > 15:
+                        pout += '{:<15.15s}'.format(str(field))+'{:<5.3s}'.format('.....')
+                    else:
+                        pout += '{:<20.15s}'.format(str(field))
+                pout += '\n'
+            print(pout)
 
-
-
-
-
-
-
-
-# def load_help_text():
-#     with open('help.txt') as f:
-#         return f.read()
-#
-# # Part 3: Implement interactive prompt. We've started for you!
-# def interactive_prompt():
-#     help_text = load_help_text()
-#     response = ''
-#     while response != 'exit':
-#         response = input('Enter a command: ')
-#
-#         if response == 'help':
-#             print(help_text)
-#             continue
-#
-# # Make sure nothing runs or prints out when this file is run as a module
-# if __name__=="__main__":
-#     interactive_prompt()
+# Make sure nothing runs or prints out when this file is run as a module
+if __name__=="__main__":
+    interactive_prompt()
