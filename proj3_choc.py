@@ -106,9 +106,11 @@ def populate_db():
 
         for i,r in enumerate(csvreader):
             if i == 0: # Skip header
-                columns_to_be_populated = tuple(r)
+                continue
 
             else:
+                r[4] = float(r[4].strip('%'))/100
+                #print(r)
                 statement = '''
                     INSERT INTO Bars (
                     Company, SpecificBeanBarName, REF, ReviewDate, CocoaPercent, CompanyLocationId,
@@ -124,15 +126,273 @@ def populate_db():
 
     print('\nSuccesfully populated Bars...must be St. Patty\'s day...\n')
 
-create_db()
-populate_db()
+# create_db()
+# populate_db()
+
+# Part 2: Implement logic to process user commands
+def process_command(command):
+
+    # First, split the command into individual commands.
+    cl = command.split()
+
+    # Start logic commands with outermost commands:
+    if 'bars' in cl:
+
+        # Define the default commands:
+        sql_params = dict(
+        select =
+        '''
+            SELECT b.SpecificBeanBarName,b.Company,cid.EnglishName,b.Rating,b.CocoaPercent,bid.EnglishName
+            FROM Bars AS b
+            JOIN Countries AS cid ON b.CompanyLocationId=cid.Id
+            LEFT JOIN Countries AS bid ON b.BroadBeanOriginId=bid.Id
+        ''',
+        where = "WHERE 1=1",
+        sortby = "ORDER BY b.Rating",
+        limit = "DESC LIMIT 10"
+        )
+        # Parse through each command:
+        for comm in cl:
+            # Split the individual command again to account for determined variables.
+            c = comm.split('=')
+            if c[0] == 'ratings':
+                sql_params['sortby'] = 'ORDER BY b.Rating'
+            elif c[0] == 'cocoa':
+                sql_params['sortby'] = 'ORDER BY b.CocoaPercent'
+            elif c[0] == 'sellcountry':
+                sql_params['where'] = '''
+                    JOIN Countries AS c ON b.CompanyLocationId=c.Id
+                    WHERE c.Alpha2=\'{}\'
+                '''.format(c[1])
+            elif c[0] == 'sellregion':
+                sql_params['where'] = '''
+                    JOIN Countries AS c ON b.CompanyLocationId=c.Id
+                    WHERE c.Region=\'{}\'
+                '''.format(c[1])
+            elif c[0] == 'sourcecountry':
+                sql_params['where'] = '''
+                    JOIN Countries AS c ON b.BroadBeanOriginId=c.Id
+                    WHERE c.Alpha2=\'{}\'
+                '''.format(c[1])
+            elif c[0] == 'sourceregion':
+                sql_params['where'] = '''
+                    JOIN Countries AS c ON b.BroadBeanOriginId=c.Id
+                    WHERE c.Region=\'{}\'
+                '''.format(c[1])
+            elif c[0] == 'top':
+                sql_params['limit'] = 'DESC LIMIT {}'.format(c[1])
+            elif c[0] == 'bottom':
+                sql_params['limit'] = 'ASC LIMIT {}'.format(c[1])
+
+        # Create the SQL statement:
+        statement = sql_params['select']+' '+sql_params['where']+' '+sql_params['sortby']+' '+sql_params['limit']
+        # Connect and execute:
+        conn = sqlite3.connect(DBNAME)
+        cur = conn.cursor()
+        #print(statement)
+        cur.execute(statement)
+
+        out = []
+        for r in cur:
+            out.append(r)
+
+        conn.close()
+
+        return out
+
+    elif 'companies' in cl:
+
+        # Define the default commands:
+        sql_params = dict(
+        select =
+        '''
+            SELECT b.Company, cid.EnglishName, AVG(b.Rating) FROM Bars AS b
+            JOIN Countries AS cid ON b.CompanyLocationId=cid.Id
+            GROUP BY b.Company
+        ''',
+        where = "HAVING COUNT(b.SpecificBeanBarName)>4",
+        sortby = "ORDER BY AVG(b.Rating)",
+        limit = "DESC LIMIT 10"
+        )
+
+        for comm in cl:
+            # Split the individual command again to account for determined variables.
+            c = comm.split('=')
+            if c[0] == 'ratings':
+                continue # Already the default.
+            elif c[0] == 'cocoa':
+                sql_params['select'] = '''
+                    SELECT b.Company, cid.EnglishName, AVG(b.CocoaPercent) FROM Bars AS b
+                    JOIN Countries AS cid ON b.CompanyLocationId=cid.Id
+                    GROUP BY b.Company
+                '''
+                sql_params['sortby'] = "ORDER BY AVG(b.CocoaPercent)"
+            elif c[0] == 'bars_sold':
+                sql_params['select'] = '''
+                    SELECT b.Company, cid.EnglishName, COUNT(b.SpecificBeanBarName) FROM Bars AS b
+                    JOIN Countries AS cid ON b.CompanyLocationId=cid.Id
+                    GROUP BY b.Company
+                '''
+                sql_params['sortby'] = "ORDER BY COUNT(b.SpecificBeanBarName)"
+            elif c[0] == 'country':
+                sql_params['where'] += ' AND cid.Alpha2=\'{}\''.format(c[1])
+            elif c[0] == 'region':
+                sql_params['where'] += ' AND cid.Region=\'{}\''.format(c[1])
+            elif c[0] == 'top':
+                sql_params['limit'] = 'DESC LIMIT {}'.format(c[1])
+            elif c[0] == 'bottom':
+                sql_params['limit'] = 'ASC LIMIT {}'.format(c[1])
+
+        # Create the SQL statement:
+        statement = sql_params['select']+' '+sql_params['where']+' '+sql_params['sortby']+' '+sql_params['limit']
+        # Connect and execute:
+        conn = sqlite3.connect(DBNAME)
+        cur = conn.cursor()
+        #print('\n',statement)
+        cur.execute(statement)
+
+        out = []
+        for r in cur:
+            out.append(r)
+
+        conn.close()
+
+        return out
+
+    elif 'countries' in cl:
+
+        # Define the default commands:
+        sql_params = dict(
+        select =
+        '''
+            SELECT c.EnglishName, c.Region, AVG(b.Rating) FROM Bars AS b
+        ''',
+        join =
+        '''
+            JOIN Countries AS c ON b.CompanyLocationId=c.Id GROUP BY c.EnglishName
+        ''',
+        where = "HAVING COUNT(*)>4",
+        sortby = "ORDER BY AVG(b.Rating)",
+        limit = "DESC LIMIT 10"
+        )
+
+        for comm in cl:
+            # Split the individual command again to account for determined variables.
+            c = comm.split('=')
+            if c[0] == 'ratings':
+                continue # default
+            elif c[0] == 'cocoa':
+                sql_params['select'] = '''
+                    SELECT c.EnglishName, c.Region, AVG(b.Rating) FROM Bars AS b
+                '''
+                sql_params['sortby'] = "ORDER BY AVG(b.CocoaPercent)"
+            elif c[0] == 'bars_sold':
+                sql_params['select'] = '''
+                    SELECT c.EnglishName, c.Region, COUNT(*) FROM Bars AS b
+                '''
+                sql_params['sortby'] = "ORDER BY COUNT(*)"
+            elif c[0] == 'sellers':
+                continue # default
+            elif c[0] == 'sources':
+                sql_params['join'] = '''
+                    JOIN Countries AS c ON b.BroadBeanOriginId=c.Id GROUP BY c.EnglishName
+                '''
+            elif c[0] == 'region':
+                sql_params['where'] += ' AND cid.Region=\'{}\''.format(c[1])
+            elif c[0] == 'top':
+                sql_params['limit'] = 'DESC LIMIT {}'.format(c[1])
+            elif c[0] == 'bottom':
+                sql_params['limit'] = 'ASC LIMIT {}'.format(c[1])
+
+        # Create the SQL statement:
+        statement = sql_params['select']+' '+sql_params['join']+' '+sql_params['where']+' '+sql_params['sortby']+' '+sql_params['limit']
+        # Connect and execute:
+        conn = sqlite3.connect(DBNAME)
+        cur = conn.cursor()
+        #print('\n',statement)
+        cur.execute(statement)
+
+        out = []
+        for r in cur:
+            out.append(r)
+
+        conn.close()
+
+        return out
+
+    elif 'regions' in cl:
+
+        # Define the default commands:
+        sql_params = dict(
+        select =
+        '''
+            SELECT c.Region, AVG(b.Rating) FROM Bars AS b
+        ''',
+        join =
+        '''
+            JOIN Countries AS c ON b.CompanyLocationId=c.Id GROUP BY c.Region
+        ''',
+        where = "HAVING COUNT(*)>4",
+        sortby = "ORDER BY AVG(b.Rating)",
+        limit = "DESC LIMIT 10"
+        )
+
+        for comm in cl:
+            # Split the individual command again to account for determined variables.
+            c = comm.split('=')
+            if c[0] == 'ratings':
+                continue # default
+            elif c[0] == 'cocoa':
+                sql_params['select'] = '''
+                    SELECT c.Region, AVG(b.Rating) FROM Bars AS b
+                '''
+                sql_params['sortby'] = "ORDER BY AVG(b.CocoaPercent)"
+            elif c[0] == 'bars_sold':
+                sql_params['select'] = '''
+                    SELECT c.Region, COUNT(*) FROM Bars AS b
+                '''
+                sql_params['sortby'] = "ORDER BY COUNT(*)"
+            elif c[0] == 'sellers':
+                continue # default
+            elif c[0] == 'sources':
+                sql_params['join'] = '''
+                    JOIN Countries AS c ON b.BroadBeanOriginId=c.Id GROUP BY c.Region
+                '''
+            elif c[0] == 'top':
+                sql_params['limit'] = 'DESC LIMIT {}'.format(c[1])
+            elif c[0] == 'bottom':
+                sql_params['limit'] = 'ASC LIMIT {}'.format(c[1])
+
+        # Create the SQL statement:
+        statement = sql_params['select']+' '+sql_params['join']+' '+sql_params['where']+' '+sql_params['sortby']+' '+sql_params['limit']
+        # Connect and execute:
+        conn = sqlite3.connect(DBNAME)
+        cur = conn.cursor()
+        #print('\n',statement)
+        cur.execute(statement)
+
+        out = []
+        for r in cur:
+            out.append(r)
+
+        conn.close()
+
+        return out
 
 
-# # Part 2: Implement logic to process user commands
-# def process_command(command):
-#     return []
-#
-#
+
+
+
+
+
+
+
+
+
+
+
+
+
 # def load_help_text():
 #     with open('help.txt') as f:
 #         return f.read()
