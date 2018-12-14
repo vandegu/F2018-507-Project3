@@ -183,6 +183,8 @@ def process_command(command):
                 sql_params['limit'] = 'DESC LIMIT {}'.format(c[1])
             elif c[0] == 'bottom':
                 sql_params['limit'] = 'ASC LIMIT {}'.format(c[1])
+            elif c[0] == 'bars':
+                continue
             else:
                 raise SyntaxError()
 
@@ -244,6 +246,8 @@ def process_command(command):
                 sql_params['limit'] = 'DESC LIMIT {}'.format(c[1])
             elif c[0] == 'bottom':
                 sql_params['limit'] = 'ASC LIMIT {}'.format(c[1])
+            elif c[0] == 'companies':
+                continue
             else:
                 raise SyntaxError()
 
@@ -307,6 +311,8 @@ def process_command(command):
                 sql_params['limit'] = 'DESC LIMIT {}'.format(c[1])
             elif c[0] == 'bottom':
                 sql_params['limit'] = 'ASC LIMIT {}'.format(c[1])
+            elif c[0] == 'countries':
+                continue
             else:
                 raise SyntaxError()
 
@@ -368,6 +374,8 @@ def process_command(command):
                 sql_params['limit'] = 'DESC LIMIT {}'.format(c[1])
             elif c[0] == 'bottom':
                 sql_params['limit'] = 'ASC LIMIT {}'.format(c[1])
+            elif c[0] == 'regions':
+                continue
             else:
                 raise SyntaxError()
 
